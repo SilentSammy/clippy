@@ -2,7 +2,8 @@ import sys
 import time
 
 from chrome import get_driver
-from chatgpt import send_message, is_response_complete, get_latest_response, is_chat_ready
+# from chatgpt import send_message, is_response_complete, get_latest_response, is_chat_ready
+from gemini import send_message, is_response_complete, get_latest_response, is_chat_ready
 from clipboard import clipboard_available, clipboard_read, clipboard_write
 
 enabled = True
@@ -42,9 +43,10 @@ sys.stdout.reconfigure(encoding='utf-8')
 driver = get_driver()
 
 waiting_for_response = False
+count_before = 0
 chat_ready = None
 
-print("Clippy is running. Copy any text to send it to ChatGPT.")
+print("Clippy is running.")
 
 while True:
     time.sleep(0.5)
@@ -53,15 +55,15 @@ while True:
     if ready != chat_ready:
         chat_ready = ready
         if ready:
-            print("ChatGPT is ready.")
+            print("Chat is ready.")
         else:
-            print("ChatGPT is not ready. Please open chatgpt.com.")
+            print("Chat is not ready. Please open _.com.")
 
     if not chat_ready:
         continue
 
     if waiting_for_response:
-        if is_response_complete(driver):
+        if is_response_complete(driver, count_before):
             clipboard_write(get_latest_response(driver))
             waiting_for_response = False
             print("Response copied to clipboard.")
@@ -80,5 +82,5 @@ while True:
             enabled = False
         print(f"Sending: {text[:80]}...")
         clipboard_write("Waiting for response...")
-        send_message(driver, text)
+        count_before = send_message(driver, text)
         waiting_for_response = True
