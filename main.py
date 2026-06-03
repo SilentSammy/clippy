@@ -1,15 +1,46 @@
 import sys
 import time
-import pyperclip
 
 from chrome import get_driver
 from chatgpt import send_message, is_response_complete, get_latest_response, is_chat_ready
+from clipboard import clipboard_available, clipboard_read, clipboard_write
+
+enabled = True
+one_shot = False
+
+def cmd_on():
+    global enabled
+    enabled = True
+    clipboard_write("Clippy enabled.")
+    print("Clippy enabled.")
+
+def cmd_off():
+    global enabled
+    enabled = False
+    clipboard_write("Clippy disabled.")
+    print("Clippy disabled.")
+
+def cmd_once():
+    global one_shot
+    one_shot = True
+    clipboard_write("Clippy ready for one message.")
+    print("One-shot armed.")
+
+def cmd_help():
+    clipboard_write("!on: enable | !off: disable | !once: send one message then disable | !help: show this")
+    print("Help copied to clipboard.")
+
+cmd_dict = {
+    "!on": cmd_on,
+    "!off": cmd_off,
+    "!once": cmd_once,
+    "!help": cmd_help,
+}
 
 sys.stdout.reconfigure(encoding='utf-8')
 
 driver = get_driver()
 
-last_clipboard = pyperclip.paste()
 waiting_for_response = False
 chat_ready = None
 
@@ -31,19 +62,23 @@ while True:
 
     if waiting_for_response:
         if is_response_complete(driver):
-            response = get_latest_response(driver)
-            pyperclip.copy(response)
-            last_clipboard = response
+            clipboard_write(get_latest_response(driver))
             waiting_for_response = False
             print("Response copied to clipboard.")
         continue
 
-    current_clipboard = pyperclip.paste()
-
-    if current_clipboard == last_clipboard or not current_clipboard.strip():
-        continue
-
-    last_clipboard = current_clipboard
-    print(f"Sending: {current_clipboard[:80]}...")
-    send_message(driver, current_clipboard)
-    waiting_for_response = True
+    text = clipboard_available()
+    if text:
+        clipboard_read()  # mark as seen
+        if text.strip() in cmd_dict:
+            cmd_dict[text.strip()]()
+            continue
+        if not enabled and not one_shot:
+            continue
+        if one_shot:
+            one_shot = False
+            enabled = False
+        print(f"Sending: {text[:80]}...")
+        clipboard_write("Waiting for response...")
+        send_message(driver, text)
+        waiting_for_response = True
