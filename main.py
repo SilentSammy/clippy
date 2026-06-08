@@ -2,9 +2,8 @@ import sys
 import time
 
 from chrome import get_driver
-# from chatgpt import send_message, is_response_complete, get_latest_response, is_chat_ready
-from gemini import send_message, is_response_complete, get_latest_response, is_chat_ready
-from clipboard import clipboard_available, clipboard_read, clipboard_write
+from gemini import send_message, paste_image, clear_input, is_response_complete, get_latest_response, is_chat_ready
+from clipboard import clipboard_available, clipboard_read, clipboard_write, clipboard_image_available, mark_image_seen
 
 enabled = True
 one_shot = False
@@ -27,14 +26,20 @@ def cmd_once():
     clipboard_write("Clippy ready for one message.")
     print("One-shot armed.")
 
+def cmd_clear():
+    clear_input(driver)
+    clipboard_write("Input cleared.")
+    print("Input cleared.")
+
 def cmd_help():
-    clipboard_write("!on: enable | !off: disable | !once: send one message then disable | !help: show this")
+    clipboard_write("!on: enable | !off: disable | !once: one message then disable | !clear: clear input | !help: show this")
     print("Help copied to clipboard.")
 
 cmd_dict = {
     "!on": cmd_on,
     "!off": cmd_off,
     "!once": cmd_once,
+    "!clear": cmd_clear,
     "!help": cmd_help,
 }
 
@@ -70,7 +75,15 @@ while True:
         continue
 
     text = clipboard_available()
-    if text:
+    img = clipboard_image_available()
+
+    if img:
+        mark_image_seen()
+        if enabled or one_shot:
+            paste_image(driver, img)
+            clipboard_write("Image added to prompt. Copy text to send.")
+            print("Image pasted into prompt.")
+    elif text:
         clipboard_read()  # mark as seen
         if text.strip() in cmd_dict:
             cmd_dict[text.strip()]()
