@@ -2,7 +2,8 @@ import sys
 import time
 
 from chrome import get_driver
-from gemini import send_message, paste_image, clear_input, is_response_complete, get_latest_response, is_chat_ready
+from gemini import GeminiBackend
+from chatgpt import ChatGPTBackend
 from clipboard import clipboard_available, clipboard_read, clipboard_write, clipboard_image_available, mark_image_seen
 
 enabled = True
@@ -27,12 +28,26 @@ def cmd_once():
     print("One-shot armed.")
 
 def cmd_clear():
-    clear_input(driver)
+    backend.clear_input()
     clipboard_write("Input cleared.")
     print("Input cleared.")
 
+def cmd_gemini():
+    global backend, chat_ready
+    backend = GeminiBackend(driver)
+    chat_ready = None
+    clipboard_write("Switched to Gemini.")
+    print("Switched to Gemini.")
+
+def cmd_chatgpt():
+    global backend, chat_ready
+    backend = ChatGPTBackend(driver)
+    chat_ready = None
+    clipboard_write("Switched to ChatGPT.")
+    print("Switched to ChatGPT.")
+
 def cmd_help():
-    clipboard_write("!on: enable | !off: disable | !once: one message then disable | !clear: clear input | !help: show this")
+    clipboard_write("!on: enable | !off: disable | !once: one message then disable | !clear: clear input | !gemini: use Gemini | !chatgpt: use ChatGPT | !help: show this")
     print("Help copied to clipboard.")
 
 cmd_dict = {
@@ -40,12 +55,16 @@ cmd_dict = {
     "!off": cmd_off,
     "!once": cmd_once,
     "!clear": cmd_clear,
+    "!gemini": cmd_gemini,
+    "!chatgpt": cmd_chatgpt,
     "!help": cmd_help,
 }
 
 sys.stdout.reconfigure(encoding='utf-8')
 
 driver = get_driver()
+backend = GeminiBackend(driver)
+# backend = ChatGPTBackend(driver)
 
 waiting_for_response = False
 count_before = 0
@@ -56,7 +75,7 @@ print("Clippy is running.")
 while True:
     time.sleep(0.5)
 
-    ready = is_chat_ready(driver)
+    ready = backend.is_chat_ready()
     if ready != chat_ready:
         chat_ready = ready
         if ready:
@@ -68,8 +87,8 @@ while True:
         continue
 
     if waiting_for_response:
-        if is_response_complete(driver, count_before):
-            clipboard_write(get_latest_response(driver))
+        if backend.is_response_complete(count_before):
+            clipboard_write(backend.get_latest_response())
             waiting_for_response = False
             print("Response copied to clipboard.")
         continue
@@ -80,7 +99,7 @@ while True:
     if img:
         mark_image_seen()
         if enabled or one_shot:
-            paste_image(driver, img)
+            backend.paste_image(img)
             clipboard_write("Image added to prompt. Copy text to send.")
             print("Image pasted into prompt.")
     elif text:
@@ -95,5 +114,5 @@ while True:
             enabled = False
         print(f"Sending: {text[:80]}...")
         clipboard_write("Waiting for response...")
-        count_before = send_message(driver, text)
+        count_before = backend.send_message(text)
         waiting_for_response = True

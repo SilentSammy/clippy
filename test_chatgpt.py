@@ -1,19 +1,19 @@
 import sys
 import time
 from chrome import get_driver
-from gemini import GeminiBackend
+from chatgpt import ChatGPTBackend
 
 sys.stdout.reconfigure(encoding='utf-8')
 
 driver = get_driver()
-bot = GeminiBackend(driver)
+bot = ChatGPTBackend(driver)
 
-print("Waiting for Gemini tab...")
+print("Waiting for ChatGPT tab...")
 while not bot.is_chat_ready():
     time.sleep(0.5)
-print("Gemini is ready.")
+print("ChatGPT is ready.")
 
-for msg in ["What is the capital of France? One sentence.", "What is the capital of Japan? One sentence."]:
+for msg in ["What is the capital of Italy? One sentence.", "What is the capital of Spain? One sentence."]:
     print(f"\nSending: {msg}")
     count_before = bot.send_message(msg)
     while not bot.is_response_complete(count_before):
